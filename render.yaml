@@ -1,9 +1,0 @@
-services:
-  - type: web
-    name: dm365
-    env: python
-    buildCommand: |
-      apt-get update && \
-      apt-get install -y chromium-driver chromium-browser tesseract-ocr fonts-liberation && \
-      pip install -r requirements.txt
-    startCommand: python main.py
