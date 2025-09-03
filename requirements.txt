@@ -5,3 +5,4 @@ requests
 Pillow
 pytesseract
 boto3
+gunicorn
