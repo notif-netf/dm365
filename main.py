@@ -88,7 +88,7 @@ def setup_chrome_options(profile_dir=None):
     chrome_options.add_argument("--remote-debugging-port=9222")
     if profile_dir:
         chrome_options.add_argument(f"--user-data-dir={profile_dir}")
-    chrome_options.binary_location = "/usr/bin/chromium-browser"
+    chrome_options.binary_location = "/usr/bin/chromium"
     return chrome_options
 
 # === CAPTCHA SOLVER (OCR) ===
