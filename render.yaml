@@ -1,16 +1,9 @@
 services:
   - type: web
     name: dm365
-    runtime: docker
-    plan: free
-    envVars:
-      - key: TELEGRAM_BOT_TOKEN
-        sync: false
-      - key: TELEGRAM_CHAT_ID
-        sync: false
-      - key: S3_BUCKET
-        sync: false
-      - key: AWS_ACCESS_KEY_ID
-        sync: false
-      - key: AWS_SECRET_ACCESS_KEY
-        sync: false
+    env: python
+    buildCommand: |
+      apt-get update && \
+      apt-get install -y chromium-driver chromium-browser tesseract-ocr fonts-liberation && \
+      pip install -r requirements.txt
+    startCommand: python main.py
