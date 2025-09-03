@@ -24,6 +24,10 @@ RUN apt-get update && \
 # Copy installed Python packages from builder stage
 COPY --from=builder /root/.local /root/.local
 
+# Set environment so Python and Gunicorn can find packages
+ENV PATH=/root/.local/bin:$PATH \
+    PYTHONUNBUFFERED=1
+
 # Set working directory
 WORKDIR /app
 
@@ -33,5 +37,5 @@ COPY . .
 # Expose port
 EXPOSE 5000
 
-# Run app
-CMD ["python", "main.py"]
+# Run app with Gunicorn
+CMD ["gunicorn", "main:app", "--bind", "0.0.0.0:5000"]
