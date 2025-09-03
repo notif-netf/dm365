@@ -3,7 +3,7 @@ FROM python:3.10-slim as builder
 
 # Install system dependencies
 RUN apt-get update && \
-    apt-get install -y tesseract-ocr && \
+    apt-get install -y tesseract-ocr chromium-driver chromium-browser fonts-liberation && \
     rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -18,7 +18,7 @@ FROM python:3.10-slim
 
 # Install only runtime system deps
 RUN apt-get update && \
-    apt-get install -y tesseract-ocr && \
+    apt-get install -y tesseract-ocr chromium-driver chromium-browser fonts-liberation && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy installed Python packages from builder stage
