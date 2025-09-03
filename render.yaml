@@ -1,6 +1,16 @@
 services:
   - type: web
     name: dm365
-    env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: python main.py
+    runtime: docker
+    plan: free
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
